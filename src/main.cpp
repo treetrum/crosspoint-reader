@@ -183,15 +183,6 @@ void setupDisplayAndFonts() {
   Serial.printf("[%lu] [   ] Fonts setup\n", millis());
 }
 
-void setupDisplayAndFonts() {
-  einkDisplay.begin();
-  Serial.printf("[%lu] [   ] Display initialized\n", millis());
-  renderer.insertFont(READER_FONT_ID, eulyooFontFamily);
-  renderer.insertFont(UI_FONT_ID, pretendardFontFamily);
-  renderer.insertFont(SMALL_FONT_ID, pretendardFontFamily);
-  Serial.printf("[%lu] [   ] Fonts setup\n", millis());
-}
-
 void setup() {
   t1 = millis();
 
