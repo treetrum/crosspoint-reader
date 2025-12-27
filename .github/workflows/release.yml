@@ -25,6 +25,10 @@ jobs:
       - name: Install PlatformIO Core and esptool
         run: pip install --upgrade platformio esptool
 
+      - name: Set version from tag
+        run: |
+          sed -i "s/^crosspoint_version = .*/crosspoint_version = ${{ github.ref_name }}/" platformio.ini
+
       - name: Build CrossPoint
         run: pio run -e gh_release
 
