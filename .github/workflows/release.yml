@@ -17,13 +17,13 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
-          key: ${{ runner.os }}-pio-v2-${{ hashFiles('platformio.ini') }}
+          key: ${{ runner.os }}-pio
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
 
-      - name: Install PlatformIO Core and esptool
-        run: pip install --upgrade platformio esptool
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
 
       - name: Set version from tag
         run: |
@@ -34,7 +34,7 @@ jobs:
 
       - name: Merge firmware binaries
         run: |
-          esptool.py --chip esp32c3 merge_bin \
+          ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32c3 merge_bin \
             -o .pio/build/gh_release/CrossPoint-${{ github.ref_name }}.bin \
             --flash_mode dio \
             --flash_freq 80m \
