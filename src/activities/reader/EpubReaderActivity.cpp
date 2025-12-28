@@ -105,6 +105,15 @@ void EpubReaderActivity::loop() {
     return;
   }
 
+  // Wait until the confirm button is fully released before accepting input
+  // This prevents the release event from FileSelectionActivity from triggering chapter select
+  if (waitForButtonRelease) {
+    if (!inputManager.isPressed(InputManager::BTN_CONFIRM)) {
+      waitForButtonRelease = false;
+    }
+    return;
+  }
+
   // Enter chapter selection activity
   if (inputManager.wasReleased(InputManager::BTN_CONFIRM)) {
     // Don't start activity transition while rendering
