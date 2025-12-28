@@ -50,6 +50,15 @@ void EpubReaderChapterSelectionActivity::onExit() {
 }
 
 void EpubReaderChapterSelectionActivity::loop() {
+  // Wait until the confirm button is fully released before accepting input
+  // This prevents the release event from the parent activity from being consumed
+  if (waitForButtonRelease) {
+    if (!inputManager.isPressed(InputManager::BTN_CONFIRM)) {
+      waitForButtonRelease = false;
+    }
+    return;
+  }
+
   const bool prevReleased =
       inputManager.wasReleased(InputManager::BTN_UP) || inputManager.wasReleased(InputManager::BTN_LEFT);
   const bool nextReleased =
