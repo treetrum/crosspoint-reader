@@ -169,8 +169,8 @@ void FileSelectionActivity::displayTaskLoop() {
 void FileSelectionActivity::render() const {
   renderer.clearScreen();
 
-  const auto pageWidth = GfxRenderer::getScreenWidth();
-  renderer.drawCenteredText(UI_FONT_ID, 10, "Books", true, BOLD);
+  const auto pageWidth = renderer.getScreenWidth();
+  renderer.drawCenteredText(READER_FONT_ID, 10, "Books", true, BOLD);
 
   // Help text
   renderer.drawButtonHints(UI_FONT_ID, "« Home", "Open", "", "");
@@ -182,7 +182,7 @@ void FileSelectionActivity::render() const {
   }
 
   const auto pageStartIndex = selectorIndex / PAGE_ITEMS * PAGE_ITEMS;
-  renderer.fillRect(0, 60 + (selectorIndex % PAGE_ITEMS) * 30 + 2, pageWidth - 1, 30);
+  renderer.fillRect(0, 60 + (selectorIndex % PAGE_ITEMS) * 30 - 2, pageWidth - 1, 30);
   for (int i = pageStartIndex; i < files.size() && i < pageStartIndex + PAGE_ITEMS; i++) {
     auto item = files[i];
     int itemWidth = renderer.getTextWidth(UI_FONT_ID, item.c_str());
