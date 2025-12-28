@@ -59,6 +59,9 @@ jobs:
         with:
           files: |
             .pio/build/gh_release/CrossPoint-${{ github.ref_name }}.bin
+            .pio/build/gh_release/firmware.bin
+            .pio/build/gh_release/bootloader.bin
+            .pio/build/gh_release/partitions.bin
           generate_release_notes: false
           draft: false
           prerelease: false
