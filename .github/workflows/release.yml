@@ -34,7 +34,7 @@ jobs:
 
       - name: Merge firmware binaries
         run: |
-          ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32c3 merge_bin \
+          python ~/.platformio/packages/tool-esptoolpy/esptool.py --chip esp32c3 merge_bin \
             -o .pio/build/gh_release/CrossPoint-${{ github.ref_name }}.bin \
             --flash_mode dio \
             --flash_freq 80m \
