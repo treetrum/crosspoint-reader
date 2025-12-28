@@ -570,10 +570,8 @@ bool JpegToBmpConverter::jpegFileToBmpStream(File& jpegFile, Print& bmpOut) {
         return false;
       }
 
-      // Process MCU block into MCU row buffer
-      // MCUs are composed of 8x8 blocks. For 16x16 MCUs, there are four 8x8 blocks:
-      // Block layout for 16x16 MCU:  [0, 64]  (top row of blocks)
-      //                              [128, 192] (bottom row of blocks)
+      // picojpeg stores MCU data in 8x8 blocks
+      // Block layout: H2V2(16x16)=0,64,128,192 H2V1(16x8)=0,64 H1V2(8x16)=0,128
       for (int blockY = 0; blockY < mcuPixelHeight; blockY++) {
         for (int blockX = 0; blockX < mcuPixelWidth; blockX++) {
           const int pixelX = mcuX * mcuPixelWidth + blockX;

@@ -173,7 +173,7 @@ void FileSelectionActivity::render() const {
   renderer.drawCenteredText(UI_FONT_ID, 10, "Books", true, BOLD);
 
   // Help text
-  renderer.drawButtonHints(UI_FONT_ID, "« Home", "", "", "");
+  renderer.drawButtonHints(UI_FONT_ID, "« Home", "Open", "", "");
 
   if (files.empty()) {
     renderer.drawText(UI_FONT_ID, 20, 60, "No books found");
