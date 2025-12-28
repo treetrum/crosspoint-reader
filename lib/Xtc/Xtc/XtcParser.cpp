@@ -149,7 +149,7 @@ XtcError XtcParser::readPageTable() {
       return XtcError::READ_ERROR;
     }
 
-    m_pageTable[i].offset = entry.dataOffset;
+    m_pageTable[i].offset = static_cast<uint32_t>(entry.dataOffset);
     m_pageTable[i].size = entry.dataSize;
     m_pageTable[i].width = entry.width;
     m_pageTable[i].height = entry.height;
@@ -189,7 +189,7 @@ size_t XtcParser::loadPage(uint32_t pageIndex, uint8_t* buffer, size_t bufferSiz
 
   // Seek to page data
   if (!m_file.seek(page.offset)) {
-    Serial.printf("[%lu] [XTC] Failed to seek to page %u at offset %llu\n", millis(), pageIndex, page.offset);
+    Serial.printf("[%lu] [XTC] Failed to seek to page %u at offset %lu\n", millis(), pageIndex, page.offset);
     m_lastError = XtcError::READ_ERROR;
     return 0;
   }

@@ -82,14 +82,15 @@ struct XtgPageHeader {
 };
 #pragma pack(pop)
 
-// Page information (internal use)
+// Page information (internal use, optimized for memory)
 struct PageInfo {
-  uint64_t offset;   // File offset to page data
+  uint32_t offset;   // File offset to page data (max 4GB file size)
   uint32_t size;     // Data size (bytes)
   uint16_t width;    // Page width
   uint16_t height;   // Page height
   uint8_t bitDepth;  // 1 = XTG (1-bit), 2 = XTH (2-bit grayscale)
-};
+  uint8_t padding;   // Alignment padding
+};  // 16 bytes total
 
 // Error codes
 enum class XtcError {
