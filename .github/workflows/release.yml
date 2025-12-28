@@ -62,3 +62,8 @@ jobs:
           generate_release_notes: false
           draft: false
           prerelease: false
+
+      - name: Trigger docs deployment
+        run: gh workflow run deploy.yml -R eunchurn/crosspoint-reader-docs
+        env:
+          GH_TOKEN: ${{ secrets.DOCS_DEPLOY_TOKEN }}
