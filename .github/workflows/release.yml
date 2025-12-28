@@ -17,7 +17,7 @@ jobs:
           path: |
             ~/.cache/pip
             ~/.platformio/.cache
-          key: ${{ runner.os }}-pio-${{ hashFiles('platformio.ini') }}
+          key: ${{ runner.os }}-pio-v2-${{ hashFiles('platformio.ini') }}
       - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
