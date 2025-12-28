@@ -38,7 +38,7 @@ jobs:
             -o .pio/build/gh_release/CrossPoint-${{ github.ref_name }}.bin \
             --flash_mode dio \
             --flash_freq 80m \
-            --flash_size 8MB \
+            --flash_size 16MB \
             0x0 .pio/build/gh_release/bootloader.bin \
             0x8000 .pio/build/gh_release/partitions.bin \
             0x10000 .pio/build/gh_release/firmware.bin
