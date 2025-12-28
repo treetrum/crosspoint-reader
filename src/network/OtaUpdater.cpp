@@ -26,14 +26,16 @@ OtaUpdater::OtaUpdaterError OtaUpdater::checkForUpdate() {
     return HTTP_ERROR;
   }
 
+  const String payload = http.getString();
+  http.end();
+
   JsonDocument doc;
   JsonDocument filter;
   filter["tag_name"] = true;
   filter["assets"][0]["name"] = true;
   filter["assets"][0]["browser_download_url"] = true;
   filter["assets"][0]["size"] = true;
-  const DeserializationError error = deserializeJson(doc, *client, DeserializationOption::Filter(filter));
-  http.end();
+  const DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
   if (error) {
     Serial.printf("[%lu] [OTA] JSON parse failed: %s\n", millis(), error.c_str());
     return JSON_PARSE_ERROR;
