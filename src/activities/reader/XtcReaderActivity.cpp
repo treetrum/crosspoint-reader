@@ -203,26 +203,88 @@ void XtcReaderActivity::renderPage() {
     const uint8_t* plane2 = pageBuffer + planeSize;  // Bit2 plane
     const size_t colBytes = (pageHeight + 7) / 8;    // Bytes per column (100 for 800 height)
 
+    // Lambda to get pixel value at (x, y)
+    auto getPixelValue = [&](uint16_t x, uint16_t y) -> uint8_t {
+      const size_t colIndex = pageWidth - 1 - x;
+      const size_t byteInCol = y / 8;
+      const size_t bitInByte = 7 - (y % 8);
+      const size_t byteOffset = colIndex * colBytes + byteInCol;
+      const uint8_t bit1 = (plane1[byteOffset] >> bitInByte) & 1;
+      const uint8_t bit2 = (plane2[byteOffset] >> bitInByte) & 1;
+      return (bit1 << 1) | bit2;
+    };
+
+    // Optimized grayscale rendering without storeBwBuffer (saves 48KB peak memory)
+    // Flow: BW display → LSB/MSB passes → grayscale display → re-render BW for next frame
+
+    // Count pixel distribution for debugging
+    uint32_t pixelCounts[4] = {0, 0, 0, 0};
     for (uint16_t y = 0; y < pageHeight; y++) {
       for (uint16_t x = 0; x < pageWidth; x++) {
-        // Column-major, right to left: column index = (width - 1 - x)
-        const size_t colIndex = pageWidth - 1 - x;
-        const size_t byteInCol = y / 8;
-        const size_t bitInByte = 7 - (y % 8);  // MSB = topmost pixel
+        pixelCounts[getPixelValue(x, y)]++;
+      }
+    }
+    Serial.printf("[%lu] [XTR] Pixel distribution: White=%lu, DarkGrey=%lu, LightGrey=%lu, Black=%lu\n", millis(),
+                  pixelCounts[0], pixelCounts[1], pixelCounts[2], pixelCounts[3]);
 
-        const size_t byteOffset = colIndex * colBytes + byteInCol;
-        const uint8_t bit1 = (plane1[byteOffset] >> bitInByte) & 1;
-        const uint8_t bit2 = (plane2[byteOffset] >> bitInByte) & 1;
-        const uint8_t pixelValue = (bit1 << 1) | bit2;
-
-        // Threshold: 0=White, 1,2,3=Dark (for best text contrast)
-        const bool isBlack = (pixelValue >= 1);
-
-        if (isBlack) {
+    // Pass 1: BW buffer - draw all non-white pixels as black
+    for (uint16_t y = 0; y < pageHeight; y++) {
+      for (uint16_t x = 0; x < pageWidth; x++) {
+        if (getPixelValue(x, y) >= 1) {
           renderer.drawPixel(x, y, true);
         }
       }
     }
+
+    // Display BW first with half refresh (clean base for grayscale overlay)
+    renderer.displayBuffer(EInkDisplay::HALF_REFRESH);
+
+    // Pass 2: LSB buffer - mark DARK gray only (XTH value 1)
+    // README: "mark the **dark** grays pixels with `1`"
+    renderer.clearScreen(0x00);
+    for (uint16_t y = 0; y < pageHeight; y++) {
+      for (uint16_t x = 0; x < pageWidth; x++) {
+        if (getPixelValue(x, y) == 1) {  // Dark grey only
+          renderer.drawPixel(x, y, true);
+        }
+      }
+    }
+    renderer.copyGrayscaleLsbBuffers();
+
+    // Pass 3: MSB buffer - mark LIGHT AND DARK gray (XTH value 1 or 2)
+    // README: "mark the **light and dark** grays pixels with `1`"
+    renderer.clearScreen(0x00);
+    for (uint16_t y = 0; y < pageHeight; y++) {
+      for (uint16_t x = 0; x < pageWidth; x++) {
+        const uint8_t pv = getPixelValue(x, y);
+        if (pv == 1 || pv == 2) {  // Dark grey or Light grey
+          renderer.drawPixel(x, y, true);
+        }
+      }
+    }
+    renderer.copyGrayscaleMsbBuffers();
+
+    // Display grayscale overlay
+    renderer.displayGrayBuffer();
+
+    // Pass 4: Re-render BW to framebuffer (restore for next frame, instead of restoreBwBuffer)
+    renderer.clearScreen();
+    for (uint16_t y = 0; y < pageHeight; y++) {
+      for (uint16_t x = 0; x < pageWidth; x++) {
+        if (getPixelValue(x, y) >= 1) {
+          renderer.drawPixel(x, y, true);
+        }
+      }
+    }
+
+    // Reset refresh counter (grayscale display is a full refresh)
+    pagesUntilFullRefresh = pagesPerRefresh;
+
+    free(pageBuffer);
+
+    Serial.printf("[%lu] [XTR] Rendered page %lu/%lu (2-bit grayscale)\n", millis(), currentPage + 1,
+                  xtc->getPageCount());
+    return;
   } else {
     // 1-bit mode: 8 pixels per byte, MSB first
     const size_t srcRowBytes = (pageWidth + 7) / 8;  // 60 bytes for 480 width

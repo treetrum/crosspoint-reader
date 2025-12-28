@@ -288,12 +288,13 @@ void GfxRenderer::freeBwBufferChunks() {
  * This should be called before grayscale buffers are populated.
  * A `restoreBwBuffer` call should always follow the grayscale render if this method was called.
  * Uses chunked allocation to avoid needing 48KB of contiguous memory.
+ * Returns true if buffer was stored successfully, false if allocation failed.
  */
-void GfxRenderer::storeBwBuffer() {
+bool GfxRenderer::storeBwBuffer() {
   const uint8_t* frameBuffer = einkDisplay.getFrameBuffer();
   if (!frameBuffer) {
     Serial.printf("[%lu] [GFX] !! No framebuffer in storeBwBuffer\n", millis());
-    return;
+    return false;
   }
 
   // Allocate and copy each chunk
@@ -314,7 +315,7 @@ void GfxRenderer::storeBwBuffer() {
                     BW_BUFFER_CHUNK_SIZE);
       // Free previously allocated chunks
       freeBwBufferChunks();
-      return;
+      return false;
     }
 
     memcpy(bwBufferChunks[i], frameBuffer + offset, BW_BUFFER_CHUNK_SIZE);
@@ -322,6 +323,7 @@ void GfxRenderer::storeBwBuffer() {
 
   Serial.printf("[%lu] [GFX] Stored BW buffer in %zu chunks (%zu bytes each)\n", millis(), BW_BUFFER_NUM_CHUNKS,
                 BW_BUFFER_CHUNK_SIZE);
+  return true;
 }
 
 /**
