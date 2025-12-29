@@ -3,7 +3,7 @@
 #include <Epub/Page.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
-#include <InputManager.h>
+#include "MappedInputManager.h"
 
 #include "Battery.h"
 #include "CrossPointSettings.h"
@@ -108,7 +108,7 @@ void EpubReaderActivity::loop() {
   // Wait until the confirm button is fully released before accepting input
   // This prevents the release event from FileSelectionActivity from triggering chapter select
   if (waitForButtonRelease) {
-    if (!inputManager.isPressed(InputManager::BTN_CONFIRM)) {
+    if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
       waitForButtonRelease = false;
     }
     return;
