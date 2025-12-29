@@ -28,6 +28,16 @@ class CrossPointSettings {
     LANDSCAPE_CCW = 3  // 800x480 logical coordinates, native panel orientation
   };
 
+  // Front button layout options
+  // Default: Back, Confirm, Left, Right
+  // Swapped: Left, Right, Back, Confirm
+  enum FRONT_BUTTON_LAYOUT { BACK_CONFIRM_LEFT_RIGHT = 0, LEFT_RIGHT_BACK_CONFIRM = 1 };
+
+  // Side button layout options
+  // Default: Previous, Next
+  // Swapped: Next, Previous
+  enum SIDE_BUTTON_LAYOUT { PREV_NEXT = 0, NEXT_PREV = 1 };
+
   // Sleep screen settings
   uint8_t sleepScreen = DARK;
   // Status bar settings
@@ -39,13 +49,17 @@ class CrossPointSettings {
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
   uint8_t orientation = PORTRAIT;
+  // Front button layout
+  uint8_t frontButtonLayout = BACK_CONFIRM_LEFT_RIGHT;
+  // Side button layout
+  uint8_t sideButtonLayout = PREV_NEXT;
 
   ~CrossPointSettings() = default;
 
   // Get singleton instance
   static CrossPointSettings& getInstance() { return instance; }
 
-  uint16_t getPowerButtonDuration() const { return shortPwrBtn ? 10 : 500; }
+  uint16_t getPowerButtonDuration() const { return shortPwrBtn ? 10 : 400; }
 
   bool saveToFile() const;
   bool loadFromFile();

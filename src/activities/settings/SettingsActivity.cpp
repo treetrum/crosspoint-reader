@@ -9,7 +9,7 @@
 
 // Define the static settings list
 namespace {
-constexpr int settingsCount = 6;
+constexpr int settingsCount = 8;
 const SettingInfo settingsList[settingsCount] = {
     // Should match with SLEEP_SCREEN_MODE
     {"Sleep Screen", SettingType::ENUM, &CrossPointSettings::sleepScreen, {"Dark", "Light", "Custom", "Cover"}},
@@ -20,6 +20,14 @@ const SettingInfo settingsList[settingsCount] = {
      SettingType::ENUM,
      &CrossPointSettings::orientation,
      {"Portrait", "Landscape CW", "Inverted", "Landscape CCW"}},
+    {"Front Button Layout",
+     SettingType::ENUM,
+     &CrossPointSettings::frontButtonLayout,
+     {"Bck, Cnfrm, Lft, Rght", "Lft, Rght, Bck, Cnfrm"}},
+    {"Side Button Layout (reader)",
+     SettingType::ENUM,
+     &CrossPointSettings::sideButtonLayout,
+     {"Prev, Next", "Next, Prev"}},
     {"Check for updates", SettingType::ACTION, nullptr, {}},
 };
 }  // namespace
@@ -68,24 +76,26 @@ void SettingsActivity::loop() {
   }
 
   // Handle actions with early return
-  if (inputManager.wasPressed(InputManager::BTN_CONFIRM)) {
+  if (mappedInput.wasPressed(MappedInputManager::Button::Confirm)) {
     toggleCurrentSetting();
     updateRequired = true;
     return;
   }
 
-  if (inputManager.wasPressed(InputManager::BTN_BACK)) {
+  if (mappedInput.wasPressed(MappedInputManager::Button::Back)) {
     SETTINGS.saveToFile();
     onGoHome();
     return;
   }
 
   // Handle navigation
-  if (inputManager.wasPressed(InputManager::BTN_UP) || inputManager.wasPressed(InputManager::BTN_LEFT)) {
+  if (mappedInput.wasPressed(MappedInputManager::Button::Up) ||
+      mappedInput.wasPressed(MappedInputManager::Button::Left)) {
     // Move selection up (with wrap-around)
     selectedSettingIndex = (selectedSettingIndex > 0) ? (selectedSettingIndex - 1) : (settingsCount - 1);
     updateRequired = true;
-  } else if (inputManager.wasPressed(InputManager::BTN_DOWN) || inputManager.wasPressed(InputManager::BTN_RIGHT)) {
+  } else if (mappedInput.wasPressed(MappedInputManager::Button::Down) ||
+             mappedInput.wasPressed(MappedInputManager::Button::Right)) {
     // Move selection down
     if (selectedSettingIndex < settingsCount - 1) {
       selectedSettingIndex++;
@@ -113,7 +123,7 @@ void SettingsActivity::toggleCurrentSetting() {
     if (std::string(setting.name) == "Check for updates") {
       xSemaphoreTake(renderingMutex, portMAX_DELAY);
       exitActivity();
-      enterNewActivity(new OtaUpdateActivity(renderer, inputManager, [this] {
+      enterNewActivity(new OtaUpdateActivity(renderer, mappedInput, [this] {
         exitActivity();
         updateRequired = true;
       }));
@@ -149,6 +159,9 @@ void SettingsActivity::render() const {
   // Draw header
   renderer.drawCenteredText(READER_FONT_ID, 10, "Settings", true, BOLD);
 
+  // Draw selection
+  renderer.fillRect(0, 60 + selectedSettingIndex * 30 - 2, pageWidth - 1, 30);
+
   // Draw all settings
   for (int i = 0; i < settingsCount; i++) {
     const int settingY = 60 + i * 30;  // 30 pixels between settings
@@ -159,24 +172,28 @@ void SettingsActivity::render() const {
     }
 
     // Draw setting name
-    renderer.drawText(UI_FONT_ID, 20, settingY, settingsList[i].name);
+    renderer.drawText(UI_FONT_ID, 20, settingY, settingsList[i].name, i != selectedSettingIndex);
 
     // Draw value based on setting type
+    std::string valueText = "";
     if (settingsList[i].type == SettingType::TOGGLE && settingsList[i].valuePtr != nullptr) {
       const bool value = SETTINGS.*(settingsList[i].valuePtr);
-      renderer.drawText(UI_FONT_ID, pageWidth - 80, settingY, value ? "ON" : "OFF");
+      valueText = value ? "ON" : "OFF";
     } else if (settingsList[i].type == SettingType::ENUM && settingsList[i].valuePtr != nullptr) {
       const uint8_t value = SETTINGS.*(settingsList[i].valuePtr);
-      auto valueText = settingsList[i].enumValues[value];
-      const auto width = renderer.getTextWidth(UI_FONT_ID, valueText.c_str());
-      renderer.drawText(UI_FONT_ID, pageWidth - 50 - width, settingY, valueText.c_str());
+      valueText = settingsList[i].enumValues[value];
     }
+    const auto width = renderer.getTextWidth(UI_FONT_ID, valueText.c_str());
+    renderer.drawText(UI_FONT_ID, pageWidth - 20 - width, settingY, valueText.c_str(), i != selectedSettingIndex);
   }
 
-  // Draw help text
-  renderer.drawButtonHints(UI_FONT_ID, "« Save", "Toggle", "", "");
+  // Draw version text above button hints
   renderer.drawText(SMALL_FONT_ID, pageWidth - 20 - renderer.getTextWidth(SMALL_FONT_ID, CROSSPOINT_VERSION),
-                    pageHeight - 30, CROSSPOINT_VERSION);
+                    pageHeight - 60, CROSSPOINT_VERSION);
+
+  // Draw help text
+  const auto labels = mappedInput.mapLabels("« Save", "Toggle", "", "");
+  renderer.drawButtonHints(UI_FONT_ID, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
   // Always use standard refresh for settings screen
   renderer.displayBuffer();

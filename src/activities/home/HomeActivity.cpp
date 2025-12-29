@@ -49,14 +49,14 @@ void HomeActivity::onExit() {
 }
 
 void HomeActivity::loop() {
-  const bool prevPressed =
-      inputManager.wasPressed(InputManager::BTN_UP) || inputManager.wasPressed(InputManager::BTN_LEFT);
-  const bool nextPressed =
-      inputManager.wasPressed(InputManager::BTN_DOWN) || inputManager.wasPressed(InputManager::BTN_RIGHT);
+  const bool prevPressed = mappedInput.wasPressed(MappedInputManager::Button::Up) ||
+                           mappedInput.wasPressed(MappedInputManager::Button::Left);
+  const bool nextPressed = mappedInput.wasPressed(MappedInputManager::Button::Down) ||
+                           mappedInput.wasPressed(MappedInputManager::Button::Right);
 
   const int menuCount = getMenuItemCount();
 
-  if (inputManager.wasReleased(InputManager::BTN_CONFIRM)) {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (hasContinueReading) {
       // Menu: Continue Reading, Browse, File transfer, Settings
       if (selectorIndex == 0) {
@@ -122,12 +122,16 @@ void HomeActivity::render() const {
     if (bookName.length() > 5 && bookName.substr(bookName.length() - 5) == ".epub") {
       bookName.resize(bookName.length() - 5);
     }
+
     // Truncate if too long
-    if (bookName.length() > 25) {
-      bookName.resize(22);
-      bookName += "...";
-    }
     std::string continueLabel = "Continue: " + bookName;
+    int itemWidth = renderer.getTextWidth(UI_FONT_ID, continueLabel.c_str());
+    while (itemWidth > renderer.getScreenWidth() - 40 && continueLabel.length() > 8) {
+      continueLabel.replace(continueLabel.length() - 5, 5, "...");
+      itemWidth = renderer.getTextWidth(UI_FONT_ID, continueLabel.c_str());
+      Serial.printf("[%lu] [HOM] width: %lu, pageWidth: %lu\n", millis(), itemWidth, pageWidth);
+    }
+
     renderer.drawText(UI_FONT_ID, 20, menuY, continueLabel.c_str(), selectorIndex != menuIndex);
     menuY += 30;
     menuIndex++;
@@ -143,7 +147,8 @@ void HomeActivity::render() const {
 
   renderer.drawText(UI_FONT_ID, 20, menuY, "Settings", selectorIndex != menuIndex);
 
-  renderer.drawButtonHints(UI_FONT_ID, "Back", "Confirm", "Left", "Right");
+  const auto labels = mappedInput.mapLabels("Back", "Confirm", "Left", "Right");
+  renderer.drawButtonHints(UI_FONT_ID, labels.btn1, labels.btn2, labels.btn3, labels.btn4);
 
   renderer.displayBuffer();
 }

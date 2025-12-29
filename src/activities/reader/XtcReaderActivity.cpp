@@ -9,16 +9,19 @@
 
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
-#include <InputManager.h>
 
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
+#include "MappedInputManager.h"
+#include "XtcReaderChapterSelectionActivity.h"
 #include "config.h"
 
 namespace {
 constexpr int pagesPerRefresh = 15;
 constexpr unsigned long skipPageMs = 700;
 constexpr unsigned long goHomeMs = 1000;
+constexpr int chapterOverlayHeight = 24;
+constexpr int chapterOverlayMargin = 4;
 }  // namespace
 
 void XtcReaderActivity::taskTrampoline(void* param) {
@@ -27,7 +30,7 @@ void XtcReaderActivity::taskTrampoline(void* param) {
 }
 
 void XtcReaderActivity::onEnter() {
-  Activity::onEnter();
+  ActivityWithSubactivity::onEnter();
 
   if (!xtc) {
     return;
@@ -56,7 +59,7 @@ void XtcReaderActivity::onEnter() {
 }
 
 void XtcReaderActivity::onExit() {
-  Activity::onExit();
+  ActivityWithSubactivity::onExit();
 
   // Wait until not rendering to delete task
   xSemaphoreTake(renderingMutex, portMAX_DELAY);
@@ -70,22 +73,57 @@ void XtcReaderActivity::onExit() {
 }
 
 void XtcReaderActivity::loop() {
+  // Pass input responsibility to sub activity if exists
+  if (subActivity) {
+    subActivity->loop();
+    return;
+  }
+
+  // Wait until the confirm button is fully released before accepting input
+  // This prevents the release event from FileSelectionActivity from triggering chapter select
+  if (waitForButtonRelease) {
+    if (!mappedInput.isPressed(MappedInputManager::Button::Confirm)) {
+      waitForButtonRelease = false;
+    }
+    return;
+  }
+
+  // Enter chapter selection activity (only if chapters exist)
+  if (mappedInput.wasReleased(MappedInputManager::Button::Confirm) && xtc->hasChapters()) {
+    // Don't start activity transition while rendering
+    xSemaphoreTake(renderingMutex, portMAX_DELAY);
+    exitActivity();
+    enterNewActivity(new XtcReaderChapterSelectionActivity(
+        this->renderer, this->mappedInput, xtc, currentPage,
+        [this] {
+          exitActivity();
+          updateRequired = true;
+        },
+        [this](const uint32_t newPage) {
+          currentPage = newPage;
+          exitActivity();
+          updateRequired = true;
+        }));
+    xSemaphoreGive(renderingMutex);
+    return;
+  }
+
   // Long press BACK (1s+) goes directly to home
-  if (inputManager.isPressed(InputManager::BTN_BACK) && inputManager.getHeldTime() >= goHomeMs) {
+  if (mappedInput.isPressed(MappedInputManager::Button::Back) && mappedInput.getHeldTime() >= goHomeMs) {
     onGoHome();
     return;
   }
 
   // Short press BACK goes to file selection
-  if (inputManager.wasReleased(InputManager::BTN_BACK) && inputManager.getHeldTime() < goHomeMs) {
+  if (mappedInput.wasReleased(MappedInputManager::Button::Back) && mappedInput.getHeldTime() < goHomeMs) {
     onGoBack();
     return;
   }
 
-  const bool prevReleased =
-      inputManager.wasReleased(InputManager::BTN_UP) || inputManager.wasReleased(InputManager::BTN_LEFT);
-  const bool nextReleased =
-      inputManager.wasReleased(InputManager::BTN_DOWN) || inputManager.wasReleased(InputManager::BTN_RIGHT);
+  const bool prevReleased = mappedInput.wasReleased(MappedInputManager::Button::PageBack) ||
+                            mappedInput.wasReleased(MappedInputManager::Button::Left);
+  const bool nextReleased = mappedInput.wasReleased(MappedInputManager::Button::PageForward) ||
+                            mappedInput.wasReleased(MappedInputManager::Button::Right);
 
   if (!prevReleased && !nextReleased) {
     return;
@@ -98,7 +136,7 @@ void XtcReaderActivity::loop() {
     return;
   }
 
-  const bool skipPages = inputManager.getHeldTime() > skipPageMs;
+  const bool skipPages = mappedInput.getHeldTime() > skipPageMs;
   const int skipAmount = skipPages ? 10 : 1;
 
   if (prevReleased) {
@@ -315,6 +353,8 @@ void XtcReaderActivity::renderPage() {
   free(pageBuffer);
 
   // XTC pages already have status bar pre-rendered, no need to add our own
+  // But we render chapter name overlay at the bottom center if chapters exist
+  renderChapterOverlay();
 
   // Display with appropriate refresh
   if (pagesUntilFullRefresh <= 1) {
@@ -357,4 +397,55 @@ void XtcReaderActivity::loadProgress() {
     }
     f.close();
   }
+}
+
+void XtcReaderActivity::renderChapterOverlay() {
+  // Only render overlay if chapters exist
+  if (!xtc->hasChapters()) {
+    return;
+  }
+
+  // Get current chapter
+  int chapterIndex = xtc->getChapterIndexForPage(currentPage);
+  if (chapterIndex < 0) {
+    return;
+  }
+
+  const auto& chapters = xtc->getChapters();
+  if (static_cast<size_t>(chapterIndex) >= chapters.size()) {
+    return;
+  }
+
+  const auto& chapter = chapters[chapterIndex];
+  if (chapter.name.empty()) {
+    return;
+  }
+
+  // Prepare chapter name display (truncate if too long)
+  std::string displayName = chapter.name;
+  const int screenWidth = renderer.getScreenWidth();
+  const int maxTextWidth = screenWidth - 40;  // 20px margin on each side
+
+  int textWidth = renderer.getTextWidth(UI_FONT_ID, displayName.c_str());
+  while (textWidth > maxTextWidth && displayName.length() > 11) {
+    displayName.replace(displayName.length() - 8, 8, "...");
+    textWidth = renderer.getTextWidth(UI_FONT_ID, displayName.c_str());
+  }
+
+  // Calculate position (bottom center)
+  const int screenHeight = renderer.getScreenHeight();
+  const int textHeight = renderer.getLineHeight(UI_FONT_ID);
+  const int boxWidth = textWidth + chapterOverlayMargin * 2;
+  const int boxHeight = textHeight + chapterOverlayMargin * 2;
+  const int boxX = (screenWidth - boxWidth) / 2;
+  const int boxY = screenHeight - boxHeight - chapterOverlayMargin;
+  const int textX = boxX + chapterOverlayMargin;
+  const int textY = boxY + chapterOverlayMargin;
+
+  // Draw semi-transparent background (white box with border)
+  renderer.fillRect(boxX, boxY, boxWidth, boxHeight, false);  // White background
+  renderer.drawRect(boxX, boxY, boxWidth, boxHeight);         // Black border
+
+  // Draw chapter name
+  renderer.drawText(UI_FONT_ID, textX, textY, displayName.c_str());
 }
