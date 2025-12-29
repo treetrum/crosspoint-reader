@@ -70,6 +70,18 @@ class XtcParser {
   // Get title from metadata
   std::string getTitle() const { return m_title; }
 
+  // Metadata access (V2 format)
+  bool hasMetadata() const { return m_hasMetadata; }
+  bool hasChapters() const { return m_hasChapters; }
+  uint16_t getCoverPage() const { return m_coverPage; }
+  uint16_t getChapterCount() const { return static_cast<uint16_t>(m_chapters.size()); }
+  const std::vector<ChapterInfo>& getChapters() const { return m_chapters; }
+  std::string getAuthor() const { return m_author; }
+  uint8_t getReadDirection() const { return m_readDirection; }
+
+  // Get chapter index for a given page
+  int getChapterIndexForPage(uint32_t pageIndex) const;
+
   // Validation
   static bool isValidXtcFile(const char* filepath);
 
@@ -82,15 +94,25 @@ class XtcParser {
   XtcHeader m_header;
   std::vector<PageInfo> m_pageTable;
   std::string m_title;
+  std::string m_author;
   uint16_t m_defaultWidth;
   uint16_t m_defaultHeight;
   uint8_t m_bitDepth;  // 1 = XTC/XTG (1-bit), 2 = XTCH/XTH (2-bit)
   XtcError m_lastError;
 
+  // V2 format fields
+  bool m_hasMetadata;
+  bool m_hasChapters;
+  uint16_t m_coverPage;
+  uint8_t m_readDirection;
+  std::vector<ChapterInfo> m_chapters;
+
   // Internal helper functions
   XtcError readHeader();
   XtcError readPageTable();
   XtcError readTitle();
+  XtcError readMetadataV2(uint64_t metadataOffset);
+  XtcError readChaptersV2(uint64_t chapterOffset, uint16_t chapterCount);
 };
 
 }  // namespace xtc

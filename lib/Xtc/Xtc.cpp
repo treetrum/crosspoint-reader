@@ -87,6 +87,63 @@ std::string Xtc::getTitle() const {
   return filepath.substr(lastSlash, lastDot - lastSlash);
 }
 
+std::string Xtc::getAuthor() const {
+  if (!loaded || !parser) {
+    return "";
+  }
+  return parser->getAuthor();
+}
+
+bool Xtc::hasMetadata() const {
+  if (!loaded || !parser) {
+    return false;
+  }
+  return parser->hasMetadata();
+}
+
+bool Xtc::hasChapters() const {
+  if (!loaded || !parser) {
+    return false;
+  }
+  return parser->hasChapters();
+}
+
+uint16_t Xtc::getCoverPage() const {
+  if (!loaded || !parser) {
+    return 0xFFFF;
+  }
+  return parser->getCoverPage();
+}
+
+uint8_t Xtc::getReadDirection() const {
+  if (!loaded || !parser) {
+    return 0;
+  }
+  return parser->getReadDirection();
+}
+
+uint16_t Xtc::getChapterCount() const {
+  if (!loaded || !parser) {
+    return 0;
+  }
+  return parser->getChapterCount();
+}
+
+const std::vector<xtc::ChapterInfo>& Xtc::getChapters() const {
+  static const std::vector<xtc::ChapterInfo> empty;
+  if (!loaded || !parser) {
+    return empty;
+  }
+  return parser->getChapters();
+}
+
+int Xtc::getChapterIndexForPage(uint32_t pageIndex) const {
+  if (!loaded || !parser) {
+    return -1;
+  }
+  return parser->getChapterIndexForPage(pageIndex);
+}
+
 std::string Xtc::getCoverBmpPath() const { return cachePath + "/cover.bmp"; }
 
 bool Xtc::generateCoverBmp() const {
@@ -108,10 +165,18 @@ bool Xtc::generateCoverBmp() const {
   // Setup cache directory
   setupCacheDir();
 
-  // Get first page info for cover
+  // Determine cover page: use metadata coverPage if available, otherwise first page
+  uint32_t coverPageIndex = 0;
+  uint16_t metaCoverPage = parser->getCoverPage();
+  if (metaCoverPage != 0xFFFF && metaCoverPage < parser->getPageCount()) {
+    coverPageIndex = metaCoverPage;
+    Serial.printf("[%lu] [XTC] Using metadata cover page: %u\n", millis(), coverPageIndex);
+  }
+
+  // Get cover page info
   xtc::PageInfo pageInfo;
-  if (!parser->getPageInfo(0, pageInfo)) {
-    Serial.printf("[%lu] [XTC] Failed to get first page info\n", millis());
+  if (!parser->getPageInfo(coverPageIndex, pageInfo)) {
+    Serial.printf("[%lu] [XTC] Failed to get cover page info (page %u)\n", millis(), coverPageIndex);
     return false;
   }
 
@@ -133,10 +198,10 @@ bool Xtc::generateCoverBmp() const {
     return false;
   }
 
-  // Load first page (cover)
-  size_t bytesRead = const_cast<xtc::XtcParser*>(parser.get())->loadPage(0, pageBuffer, bitmapSize);
+  // Load cover page
+  size_t bytesRead = const_cast<xtc::XtcParser*>(parser.get())->loadPage(coverPageIndex, pageBuffer, bitmapSize);
   if (bytesRead == 0) {
-    Serial.printf("[%lu] [XTC] Failed to load cover page\n", millis());
+    Serial.printf("[%lu] [XTC] Failed to load cover page %u\n", millis(), coverPageIndex);
     free(pageBuffer);
     return false;
   }

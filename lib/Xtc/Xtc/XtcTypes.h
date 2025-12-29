@@ -13,6 +13,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 namespace xtc {
 
@@ -30,7 +31,7 @@ constexpr uint32_t XTH_MAGIC = 0x00485458;  // "XTH\0" for 2-bit page data
 constexpr uint16_t DISPLAY_WIDTH = 480;
 constexpr uint16_t DISPLAY_HEIGHT = 800;
 
-// XTC file header (56 bytes)
+// XTC file header (56 bytes) - Legacy format (EPUB2XTC converter)
 #pragma pack(push, 1)
 struct XtcHeader {
   uint32_t magic;            // 0x00: Magic number "XTC\0" (0x00435458)
@@ -47,6 +48,58 @@ struct XtcHeader {
   uint32_t padding;          // 0x34: Padding to 56 bytes
 };
 #pragma pack(pop)
+
+// XTC file header V2 (56 bytes) - New format per XTC_FORMAT.md
+#pragma pack(push, 1)
+struct XtcHeaderV2 {
+  uint32_t magic;           // 0x00: File identifier "XTC\0" or "XTCH"
+  uint16_t version;         // 0x04: Version number (0x0100 = v1.0)
+  uint16_t pageCount;       // 0x06: Total pages
+  uint8_t readDirection;    // 0x08: Reading direction (0=L→R, 1=R→L, 2=Top→Bottom)
+  uint8_t hasMetadata;      // 0x09: Has metadata (0-1)
+  uint8_t hasThumbnails;    // 0x0A: Has thumbnails (0-1)
+  uint8_t hasChapters;      // 0x0B: Has chapters (0-1)
+  uint32_t currentPage;     // 0x0C: Current page (1-based)
+  uint64_t metadataOffset;  // 0x10: Metadata offset
+  uint64_t indexOffset;     // 0x18: Index table offset (page table)
+  uint64_t dataOffset;      // 0x20: Data area offset
+  uint64_t thumbOffset;     // 0x28: Thumbnail offset
+  uint64_t chapterOffset;   // 0x30: Chapter data offset
+};
+#pragma pack(pop)
+
+// XTC Metadata Structure (256 bytes, optional)
+#pragma pack(push, 1)
+struct XtcMetadata {
+  char title[128];        // 0x00: Title (UTF-8, null-terminated)
+  char author[64];        // 0x80: Author (UTF-8, null-terminated)
+  char publisher[32];     // 0xC0: Publisher/source (UTF-8, null-terminated)
+  char language[16];      // 0xE0: Language code (e.g., "zh-CN", "en-US")
+  uint32_t createTime;    // 0xF0: Creation time (Unix timestamp)
+  uint16_t coverPage;     // 0xF4: Cover page (0-based, 0xFFFF=none)
+  uint16_t chapterCount;  // 0xF6: Number of chapters
+  uint64_t reserved;      // 0xF8: Reserved (zero-filled)
+};
+#pragma pack(pop)
+
+// Chapter Structure (96 bytes per chapter, optional)
+#pragma pack(push, 1)
+struct XtcChapter {
+  char chapterName[80];  // 0x00: Chapter name (UTF-8, null-terminated)
+  uint16_t startPage;    // 0x50: Start page (0-based)
+  uint16_t endPage;      // 0x52: End page (0-based, inclusive)
+  uint32_t reserved1;    // 0x54: Reserved 1 (zero-filled)
+  uint32_t reserved2;    // 0x58: Reserved 2 (zero-filled)
+  uint32_t reserved3;    // 0x5C: Reserved 3 (zero-filled)
+};
+#pragma pack(pop)
+
+// Chapter info for runtime use
+struct ChapterInfo {
+  std::string name;
+  uint16_t startPage;
+  uint16_t endPage;
+};
 
 // Page table entry (16 bytes per page)
 #pragma pack(push, 1)
