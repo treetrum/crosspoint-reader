@@ -22,6 +22,9 @@ class CrossPointSettings {
   // Status bar display type enum
   enum STATUS_BAR_MODE { NONE = 0, NO_PROGRESS = 1, FULL = 2 };
 
+  // Book progress precision (decimal places)
+  enum BOOK_PROGRESS_PRECISION { PROGRESS_0_DECIMALS = 0, PROGRESS_1_DECIMAL = 1, PROGRESS_2_DECIMALS = 2 };
+
   enum ORIENTATION {
     PORTRAIT = 0,      // 480x800 logical coordinates (current default)
     LANDSCAPE_CW = 1,  // 800x480 logical coordinates, rotated 180° (swap top/bottom)
@@ -94,6 +97,8 @@ class CrossPointSettings {
   uint8_t hideBatteryPercentage = HIDE_NEVER;
   // Long-press chapter skip on side buttons
   uint8_t longPressChapterSkip = 1;
+  // Book progress precision (decimal places)
+  uint8_t bookProgressPrecision = PROGRESS_0_DECIMALS;
 
   ~CrossPointSettings() = default;
 

@@ -448,7 +448,8 @@ void EpubReaderActivity::renderStatusBar(const int orientedMarginRight, const in
 
     // Right aligned text for progress counter
     char progressStr[32];
-    snprintf(progressStr, sizeof(progressStr), "%d/%d  %.1f%%", section->currentPage + 1, section->pageCount,
+    int precision = SETTINGS.bookProgressPrecision;
+    snprintf(progressStr, sizeof(progressStr), "%d/%d  %.*f%%", section->currentPage + 1, section->pageCount, precision,
              bookProgress);
     const std::string progress = progressStr;
     progressTextWidth = renderer.getTextWidth(SMALL_FONT_ID, progress.c_str());
